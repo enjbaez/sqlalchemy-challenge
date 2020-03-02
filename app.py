@@ -8,6 +8,8 @@ Created on Mon Feb 24 12:00:41 2020
 import numpy as np
 import sqlalchemy
 import datetime as dt
+import datetime as datetime
+from datetime import timedelta
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func, inspect
@@ -98,13 +100,39 @@ def tobs():
     return jsonify(tobs_list)
 
 @app.route("/api/v1.0/<start>")
-def start(start=None):
+def temperature_s(start):
+    # Set start and end dates for date range
+    startDate = datetime.datetime.strptime("2017-08-01", "%Y-%m-%d")
+    endDate = datetime.datetime.strptime("2017-08-23", "%Y-%m-%d")
 
-    """Return a JSON list of tmin, tmax, tavg for the dates greater than or equal to the date provided"""
+    # Date range
+    # Getting date range
+    delta = endDate - startDate
+    date_range = []
+    for i in range(delta.days + 1):
+        date_range.append(startDate + timedelta(days=i))
+    
+    # Converting to strings to filter
+    str_date_range = []
+    for date in date_range:
+        new_date = date.strftime("%Y-%m-%d")
+        str_date_range.append(new_date)
 
-    from_start = session.query(Measurement.date, func.min(Measurement.tobs), func.avg(Measurement.tobs), func.max(Measurement.tobs)).filter(Measurement.date >= start).group_by(Measurement.date).all()
-    from_start_list=list(from_start)
-    return jsonify(from_start_list)
+    # Grabbing avg, min & max temps    
+    temp_avg = session.query(func.avg(Measurement.tobs))\
+                .filter(Measurement.date.in_(str_date_range))[0][0]
+    temp_min = session.query(func.min(Measurement.tobs))\
+                .filter(Measurement.date.in_(str_date_range))[0][0]
+    temp_max = session.query(func.max(Measurement.tobs))\
+                .filter(Measurement.date.in_(str_date_range))[0][0]
+
+    # Dictionary of temperatures
+    temp_dict = {}
+    temp_dict["Average Temperature"] = temp_avg
+    temp_dict["Minimum Temperature"] = temp_min
+    temp_dict["Maximum Temperature"] = temp_max
+
+    return jsonify(temp_dict)
 
 
 @app.route("/api/v1.0/<start>/<end>")
